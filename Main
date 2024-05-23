@@ -1,0 +1,375 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+#include <ctype.h> // For isdigit() function
+
+typedef struct {
+    int base;
+    int *digits;
+    int size;
+    bool sign;
+} BigInt;
+
+void initializeBigIntFromString(BigInt *bigInt, const char *str, int base) {
+    if (bigInt == NULL || str == NULL) return;
+
+    int length = strlen(str);
+    int startIndex = 0;
+
+    bigInt->base = base; // Set the base
+    bigInt->sign = false; // Default to positive
+
+    // Check if the number is negative
+    if (str[0] == '-') {
+        bigInt->sign = true;
+        startIndex = 1; // Start reading digits after the sign
+    }
+
+    // Allocate memory for digits (number of digits = string length - startIndex)
+    bigInt->size = length - startIndex;
+    bigInt->digits = malloc(bigInt->size * sizeof(int));
+    if (bigInt->digits == NULL) {
+        fprintf(stderr, "Memory allocation error\n");
+        return;
+    }
+
+    // Convert each character to a digit and store in `digits`
+    for (int i = 0; i < bigInt->size; i++) {
+        char c = str[startIndex + i];
+        if (isdigit(c)) {
+            bigInt->digits[i] = c - '0'; // Convert character to integer digit
+        } else {
+            fprintf(stderr, "Caractere invalide '%c' dans la cha ne.\n", c);
+            free(bigInt->digits);
+            bigInt->digits = NULL;
+            bigInt->size = 0;
+            return;
+        }
+    }
+}
+
+void printBigInt(const BigInt *bigInt) {
+    if (bigInt == NULL || bigInt->digits == NULL) {
+        printf("BigInt invalide (NULL).\n");
+        return;
+    }
+
+    if (bigInt->sign) {
+        printf("-");
+    }
+
+    for (int i = 0; i < bigInt->size; i++) {
+        printf("%d", bigInt->digits[i]);
+    }
+    printf("\n");
+}
+
+bool egal(BigInt bigInt1, BigInt bigInt2){
+    if(bigInt1.size > bigInt2.size){
+        return true;
+    }
+    for(int i=0;i<bigInt1.size;i++){
+        if(bigInt1.digits[i] != bigInt2.digits[i]){
+            return false;
+        }
+    }
+}
+
+bool iszero(BigInt bigInt1){
+    for(int i=bigInt1.size-1;i>-1;i--){
+        if(bigInt1.digits[i] != 0){
+            return false;
+        }
+    }
+    return true;
+}
+
+bool inferieur(BigInt bigInt1, BigInt bigInt2){
+    if(iszero(bigInt2) == true){
+        return true;
+    }else if(iszero(bigInt1) == true){
+        return false;
+    }
+    if(bigInt1.size < bigInt2.size){
+        return false;
+    }else if(bigInt1.size > bigInt2.size){
+        return true;
+    }
+    for(int i=0;i<bigInt1.size;i++){
+        if(bigInt1.digits[i] < bigInt2.digits[i]){
+            return false;
+        }else if(bigInt1.digits[i] > bigInt2.digits[i]){
+            return true;
+        }
+    }
+    return true;
+}
+
+BigInt addition(BigInt bigInt1, BigInt bigInt2){
+    int bigInt1size = bigInt1.size;
+    int bigInt2size = bigInt2.size;
+    int min;
+    int max;
+    BigInt result;
+
+    if(bigInt1size >= bigInt2size){
+        min = bigInt2.size;
+        max = bigInt1.size;
+    } else {
+        min = bigInt1.size;
+        max = bigInt2.size;
+    }
+
+    result.size = max + 1;
+    result.digits = (int*)malloc((result.size + 1) * sizeof(int));
+
+    for(int i=0;i < result.size + 1;i++) {
+        result.digits[i] = 0;
+    }
+
+    if(bigInt1.sign == true || bigInt2.sign == true){
+        printf("Un des deux chiffres fournit est négatif.\n");
+        return result;
+    }
+
+    int ret = 0;
+
+    for(int i=0;i < result.size;i++) {
+        int somme = ret;
+        if(i<bigInt1size){
+            somme += bigInt1.digits[bigInt1size -1 -i];
+        }
+        if(i<bigInt2size){
+            somme += bigInt2.digits[bigInt2size -1 -i];
+        }
+        result.digits[result.size -1 -i] = somme % 10;
+        ret = somme/10;
+    }
+
+
+    if (result.digits[0] == 0) {
+        BigInt temp;
+        temp.sign = false;
+        temp.size = result.size - 1;
+        temp.digits = (int*)malloc(temp.size * sizeof(int));
+        for(int i=0;i < temp.size;i++) {
+            temp.digits[i] = result.digits[i + 1];
+        }
+        free(result.digits);
+        result = temp;
+    }else{
+        free(result.digits);
+    }
+    return result;
+}
+
+BigInt soustraction(BigInt bigInt1, BigInt bigInt2){
+    int bigInt1size = bigInt1.size;
+    int bigInt2size = bigInt2.size;
+    int min;
+    int max;
+    BigInt result;
+
+    if(inferieur(bigInt1, bigInt2) == false){
+        return result;
+    }
+
+    if(bigInt1size >= bigInt2size){
+        min = bigInt2.size;
+        max = bigInt1.size;
+    } else {
+        min = bigInt1.size;
+        max = bigInt2.size;
+    }
+    result.size = max;
+
+    result.digits = (int*)malloc(result.size * sizeof(int));
+
+    for(int i=0;i < result.size;i++) {
+        result.digits[i] = 0;
+    }
+
+    if(bigInt1.sign == true || bigInt2.sign == true){
+        printf("Un des deux chiffres fournit est négatif.\n");
+        return result;
+    }
+
+    int ret = 0;
+
+    for(int i=0;i < result.size;i++) {
+        int diff = bigInt1.digits[bigInt1size -1 -i];
+        if (i < bigInt2size) {
+            diff -= bigInt2.digits[bigInt2size -1 -i];
+        }
+        if (ret == 1) {
+            diff--;
+            ret = 0;
+        }
+        if (diff < 0) {
+            diff += 10;
+            ret = 1;
+        }
+        result.digits[result.size -1 -i] = diff;
+    }
+    
+    result.sign = false;
+    while(result.digits[0] == 0 && result.size > 1) {
+        for(int i=0;i < result.size -1;i++) {
+            result.digits[i] = result.digits[i+1];
+        }
+        result.size--;
+    }
+    return result;
+}
+
+
+BigInt multiplication_naive(BigInt bigInt1, BigInt bigInt2) {
+    int bigInt1size = bigInt1.size;
+    int bigInt2size = bigInt2.size;
+    BigInt result;
+
+    if (bigInt1.sign != bigInt2.sign) {
+        result.sign = true;
+    } else {
+        result.sign = false;
+    }
+
+    result.size = bigInt1.size + bigInt2.size;
+
+    result.digits = (int*)calloc(result.size, sizeof(int));
+
+    for(int i=bigInt1.size -1;i >= 0;i--) {
+        int ret = 0;
+        for(int j=bigInt2.size -1;j >= 0;j--) {
+            int indice = i + j;
+            int somme = bigInt1.digits[i] * bigInt2.digits[j];
+            somme += result.digits[indice + 1] + ret;
+            result.digits[indice + 1] = somme % 10;
+            ret = somme / 10;
+        }
+        result.digits[i] += ret;
+    }
+
+    while(result.digits[0] == 0) {
+        for(int i=0;i < result.size -1;i++) {
+            result.digits[i] = result.digits[i+1];
+        }
+        result.size--;
+    }
+
+    return result;
+}
+
+
+BigInt modulo(BigInt bigInt1, BigInt bigInt2) {
+    int bigInt1size = bigInt1.size;
+    int bigInt2size = bigInt2.size;
+    BigInt result;
+
+    result.size = bigInt1.size + bigInt2.size;
+
+    result.digits = (int*)calloc(result.size, sizeof(int));
+
+    BigInt coef;
+    initializeBigIntFromString(&coef, "2", 10);
+
+    printf("%s\n", inferieur(bigInt1, result) ? "true" : "false");
+
+    while(inferieur(bigInt1, result) == true){ 
+        coef = multiplication_naive(coef, coef);
+        result = multiplication_naive(coef, bigInt2);
+        result = soustraction(bigInt1, result);
+    }
+    printBigInt(&coef);
+
+    BigInt un;
+    initializeBigIntFromString(&un, "1", 10);
+
+    while(inferieur(bigInt1, result) == false){ 
+        coef = soustraction(coef, un);
+        result = multiplication_naive(coef, bigInt2);
+        result = soustraction(bigInt1, result);
+    }
+
+    result = multiplication_naive(coef, bigInt2);
+    result = soustraction(bigInt1, result);
+
+    while(result.digits[0] == 0) {
+        for(int i=0;i < result.size -1;i++) {
+            result.digits[i] = result.digits[i+1];
+        }
+        result.size--;
+    }
+    return result;
+}
+
+BigInt expod(BigInt bigInt1, BigInt puissance) {
+    BigInt un;
+    BigInt result;
+    BigInt temp;
+
+    initializeBigIntFromString(&un, "1", 10);
+    initializeBigIntFromString(&result, "1", 10);
+
+    temp = bigInt1;
+
+    while (iszero(puissance) == false) {
+        result = multiplication_naive(result, temp);
+        puissance = soustraction(puissance, un);
+    }
+    return result;
+}
+
+
+BigInt expodmodulaire(BigInt bigInt1, BigInt bigInt2, BigInt puissance){
+    BigInt result;
+    if(bigInt1.size >= bigInt2.size){
+        result.size = expod(bigInt1, puissance).size;
+    } else { 
+        result.size = expod(bigInt2, puissance).size;
+    }
+    result.digits = (int*)calloc(result.size, sizeof(int));
+
+    result = expod(bigInt1, puissance);
+    result = modulo(result, bigInt2);
+    while(result.digits[0] == 0) {
+        for(int i=0;i < result.size -1;i++) {
+            result.digits[i] = result.digits[i+1];
+        }
+        result.size--;
+    }
+    return result;
+}
+
+int main() {
+    const char *numberStr1 = "100000000000000032253026811062601077330534000577721428213162314390523800024213661614191641440916561970937480955352151013648395115357430509346056685751908104604804274093155579669064961047889936499692574771067386251574276963857856683536050952627769564438212772502020948705485552377673431992101012399074616702889167860946430527664440335203598368613943278581713469190745518402494263274591684370606152519336992950191507724887246631099028662153833177411501448076177840189164804205630132962171288621621629984169979969333325099999385718972112993100680230476605247759696604967376774162948781909672185858673020654319798114503202069404746282503135539895613192088400533177661870926311358203486635131919357378101073373685451078408481229544016473181701074007129081111996333342215440939309093250808685822298556155538300456566438093536834662949724531700978991251539134358571828094368252872629656966845357524506805466172265484711655483282291285828136818596461054014561167778837501531047522120747017244556297711987332171332508399289690257438971174616164757091183704201942573921455715952445039396595918891410024194232124765818411422060907018916049888770840869915440071597482452271508632791518686736404338409333";
+    //const char *numberStr1 = "5";
+    const char *numberStr2 = "8686485663426759224407888859770678805723738354159785676572400332226014";
+    //const char *numberStr2 = "2";
+    const char *numberStr3 = "17";
+    BigInt myNumber1;
+    BigInt myNumber2;
+    BigInt myNumber3;
+    //1313514336573240965315798264126945794276261645840345232771715157130199
+
+    // Initialize the BigInt from a string with a base of 10
+    initializeBigIntFromString(&myNumber1, numberStr1, 10);
+    initializeBigIntFromString(&myNumber2, numberStr2, 10);
+    initializeBigIntFromString(&myNumber3, numberStr3, 10);
+
+    //printf("%s\n", inferieur(myNumber1, myNumber2) ? "true" : "false");
+    BigInt result = modulo(myNumber1, myNumber2);
+    printBigInt(&result);
+
+    // Display the number
+
+
+    //613913578
+    // Free memory
+    free(myNumber1.digits);
+    free(myNumber2.digits);
+    free(myNumber3.digits);
+
+    return EXIT_SUCCESS;
+}
